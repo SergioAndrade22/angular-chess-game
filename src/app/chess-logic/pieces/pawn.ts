@@ -29,6 +29,6 @@ export class Pawn extends Piece {
 
     public set hasMoved(_) {
         this._hasMoved = true
-        this._directions = this._directions.filter(({x}) => x !== 2)
+        this._directions = this._directions.filter(({x}) => x !== 2 && x !== -2)
     }
 }

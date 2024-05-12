@@ -107,11 +107,10 @@ export class ChessBoard {
                             if (attackedPiece !== null) {
                                 break
                             }
+                            // updating the new coordinates to keep traversing along the same direction
+                            newX += dx
+                            newY += dy
                         }
-
-                        // updating the new coordinates to keep traversing along the same direction
-                        newX += dx
-                        newY += dy
                     }
                 }
             }
@@ -205,5 +204,31 @@ export class ChessBoard {
         }
 
         return safeSquares
+    }
+
+    public move(prevX: number, prevY: number, newX: number, newY: number): void {
+        if (!this.areCoordsValid(prevX, prevY) || !this.areCoordsValid(newX, newY)) {
+            return
+        }
+        const piece: Piece|null = this.chessBoard[prevX][prevY]
+        if (!piece || piece.color !== this._playerTurn) {
+            return
+        }
+
+        const pieceSafeSquares: Coords[]|undefined = this._safeSquares.get(prevX + "," + prevY)
+        if (!pieceSafeSquares || !pieceSafeSquares.find(square => square.x === newX && square.y === newY)) {
+            throw new Error("Square not valid")
+        }
+
+        if ((piece instanceof Pawn || piece instanceof King || piece instanceof Rook) && !piece.hasMoved) {
+            console.log(`Reached with ${piece.color} piece`)
+            piece.hasMoved = true
+        }
+        // Updated Board
+        this.chessBoard[prevX][prevY] = null
+        this.chessBoard[newX][newY] = piece
+
+        this._playerTurn = this._playerTurn === Color.White ? Color.Black : Color.White
+        this._safeSquares = this.findSafeSquare()
     }
 }

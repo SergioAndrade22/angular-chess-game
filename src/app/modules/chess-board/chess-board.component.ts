@@ -19,7 +19,7 @@ export class ChessBoardComponent {
   public get playerTurn(): Color { return this.chessBoard.playerTurn }
   public get safeSquares(): SafeSquares { return this.chessBoard.safeSquares }
   private selectedSquare: SelectedSquare = { piece: null }
-  private pieceSafeSquare: Coords[] = []
+  private pieceSafeSquares: Coords[] = []
 
   public isSquareDark(x: number, y: number): boolean {
     return ChessBoard.isSquareDark(x, y)
@@ -30,16 +30,42 @@ export class ChessBoardComponent {
   }
 
   public isSquareSafeForSelectedPiece(x: number, y: number): boolean {
-    return this.pieceSafeSquare.some(square => square.x === x && square.y === y)
+    return this.pieceSafeSquares.some(square => square.x === x && square.y === y)
   }
 
-  public selectingPiece(x: number, y: number): void {
+  private demarkingPreviouslySelectedAndSafeSquares(): void {
+    this.selectedSquare = { piece: null }
+    this.pieceSafeSquares = []
+  }
+
+  private selectingPiece(x: number, y: number): void {
     const piece: FENChar | null = this.chessBoardView[x][y]
     if (!piece) return
     if (this.isWrongPieceSelected(piece)) return
 
+    const isSameSquareClicked: boolean = !!this.selectedSquare.piece && this.selectedSquare.x === x && this.selectedSquare.y === y
+    if (isSameSquareClicked) {
+      this.demarkingPreviouslySelectedAndSafeSquares()
+      return
+    }
+
     this.selectedSquare = { piece, x, y }
-    this.pieceSafeSquare = this.safeSquares.get(x + "," + y) || []
+    this.pieceSafeSquares = this.safeSquares.get(x + "," + y) || []
+  }
+
+  private placingPiece(newX: number, newY: number): void {
+    if (!this.selectedSquare.piece) return
+    if (!this.isSquareSafeForSelectedPiece(newX, newY)) return
+
+    const {x: prevX, y: prevY} = this.selectedSquare
+    this.chessBoard.move(prevX, prevY, newX, newY)
+    this.chessBoardView = this.chessBoard.chessBoardView
+    this.demarkingPreviouslySelectedAndSafeSquares()
+  }
+
+  public move(x: number, y: number): void {
+    this.selectingPiece(x, y)
+    this.placingPiece(x, y)
   }
 
   public isWrongPieceSelected(piece: FENChar): boolean {
