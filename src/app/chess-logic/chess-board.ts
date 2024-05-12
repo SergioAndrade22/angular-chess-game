@@ -1,4 +1,4 @@
-import { Color, FENChar } from "./models";
+import { Color, Coords, FENChar, SafeSquares } from "./models";
 import { Bishop } from "./pieces/bishop";
 import { King } from "./pieces/king";
 import { Knight } from "./pieces/knight";
@@ -8,8 +8,10 @@ import { Queen } from "./pieces/queen";
 import { Rook } from "./pieces/rook";
 
 export class ChessBoard {
-    private chessBoard: (Piece | null)[][];
-    private _playerTurn = Color.White;
+    private chessBoard: (Piece | null)[][]
+    private readonly chessBoardSize: number = 8
+    private _playerTurn = Color.White
+    private _safeSquares: SafeSquares
 
     constructor() {
         this.chessBoard = [
@@ -46,6 +48,8 @@ export class ChessBoard {
                 new King(Color.Black), new Bishop(Color.Black), new Knight(Color.Black), new Rook(Color.Black),
             ],
         ];
+
+        this._safeSquares = this.findSafeSquare();
     }
 
     public get playerTurn(): Color {
@@ -56,7 +60,150 @@ export class ChessBoard {
         return this.chessBoard.map(row => row.map(piece => piece ? piece.FENChar : null))
     }
 
+    public get safeSquares(): SafeSquares {
+        return this._safeSquares
+    }
+
     public static isSquareDark(x: number, y: number): boolean {
         return (x % 2 === 0 && y % 2 === 0) || (x % 2 !== 0 && y % 2 !== 0)
+    }
+
+    private areCoordsValid(x: number, y: number): boolean {
+        return x >= 0 && x < this.chessBoardSize && y >= 0 && y < this.chessBoardSize
+    }
+
+    public isInCheck(playerTurn: Color): boolean {
+        for(let x = 0; x < this.chessBoardSize; x++) {
+            for(let y = 0; y < this.chessBoardSize; y++) {
+                const piece: Piece|null = this.chessBoard[x][y]
+                if (!piece || piece.color === playerTurn) {
+                    continue
+                }
+
+                for (const {x: dx, y: dy} of piece.directions) {
+                    let newX: number = x + dx
+                    let newY: number = y + dy
+
+                    if (!this.areCoordsValid(newX, newY)) {
+                        continue
+                    }
+
+                    if (piece instanceof Pawn || piece instanceof King || piece instanceof Knight) {
+                        if (piece instanceof Pawn && dy === 0) continue // as Pawns can only attack diagonally
+
+                        const attackedPiece: Piece|null = this.chessBoard[newX][newY]
+                        if (attackedPiece instanceof King && attackedPiece.color !== playerTurn) {
+                            return false
+                        }
+                    }
+                    else { // Queen, Rook, Bishop
+                        while(this.areCoordsValid(newX, newY)) {
+                            const attackedPiece: Piece|null = this.chessBoard[newX][newY]
+                            if (attackedPiece instanceof King && attackedPiece.color !== playerTurn) {
+                                return false
+                            }
+
+                            // We found another piece along the axis we are checking so we can not keep going on this direction
+                            if (attackedPiece !== null) {
+                                break
+                            }
+                        }
+
+                        // updating the new coordinates to keep traversing along the same direction
+                        newX += dx
+                        newY += dy
+                    }
+                }
+            }
+        }
+
+        return false
+    }
+
+    private isPositionSafeAfterMove(piece: Piece, prevX: number, prevY: number, newX: number, newY: number): boolean {
+        const newPiece: Piece|null = this.chessBoard[newX][newY]
+        // Can't place your own piece on top of another one belonging to you
+        if (newPiece && newPiece.color === piece.color) {
+            return false
+        }
+
+        // Simulate new position
+        this.chessBoard[prevX][prevY] = null
+        this.chessBoard[newX][newY] = piece
+
+        const isPositionSafe: boolean = !this.isInCheck(piece.color)
+
+        // Restore old position
+        this.chessBoard[prevX][prevY] = piece
+        this.chessBoard[newX][newY] = newPiece
+
+        return isPositionSafe
+    }
+
+    private findSafeSquare(): SafeSquares {
+        const safeSquares: SafeSquares = new Map<string, Coords[]>();
+
+        for(let x = 0; x < this.chessBoardSize; x++) {
+            for(let y = 0; y < this.chessBoardSize; y++) {
+                const piece: Piece|null = this.chessBoard[x][y]
+                if (!piece || piece.color !== this._playerTurn) {
+                    continue
+                }
+
+                const pieceSafeSquares: Coords[] = []
+
+                for (const {x: dx, y: dy} of piece.directions) {
+                    let newX: number = x + dx
+                    let newY: number = y + dy
+
+                    if (!this.areCoordsValid(newX, newY)) {
+                        continue
+                    }
+
+                    let newPiece: Piece|null = this.chessBoard[newX][newY]
+
+                    if (newPiece && newPiece.color === piece.color) {
+                        continue
+                    }
+
+                    // Need to restrict Pawn movement in certain directions
+                    if (piece instanceof Pawn) {
+                        // Can't move if there is a piece in the way while moving 2 places
+                        if (dx === 2 || dx === -2) {
+                            if (newPiece) continue
+                            if (this.chessBoard[newX + (dx === 2 ? -1 : 1)][newY]) continue
+                        }
+                        // Can't move if there is a piece in the way while moving 1 place
+                        if ((dx === 1 || dx === -1) && dy === 0 && newPiece) continue
+                        // Can't move diagonally if there is no piece or the piece is of the same color
+                        if ((dy === 1 || dy === -1) && (!newPiece || piece.color === newPiece.color)) continue
+                    }
+                    if (piece instanceof Pawn || piece instanceof King || piece instanceof Knight) {
+                        if (this.isPositionSafeAfterMove(piece, x, y, newX, newY)) {
+                            pieceSafeSquares.push({x: newX, y: newY})
+                        }
+                    } else {
+                        while(this.areCoordsValid(newX, newY)) {
+                            newPiece = this.chessBoard[newX][newY]
+                            if (newPiece && newPiece.color === piece.color) {
+                                break
+                            }
+                            if (this.isPositionSafeAfterMove(piece, x, y, newX, newY)) {
+                                pieceSafeSquares.push({x: newX, y: newY})
+                            }
+                            if (newPiece !== null) break
+                            newX += dx
+                            newY += dy
+                        }
+                    }
+                }
+
+                if (pieceSafeSquares.length) {
+                    safeSquares.set(x + "," + y, pieceSafeSquares)
+                }
+            }
+        }
+
+        return safeSquares
     }
 }
