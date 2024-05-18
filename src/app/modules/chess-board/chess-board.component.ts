@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { ChessBoard } from '../../chess-logic/chess-board';
-import { Color, Coords, FENChar, SafeSquares, pieceImagePath } from '../../chess-logic/models';
+import { CheckState, Color, Coords, FENChar, LastMove, SafeSquares, pieceImagePath } from '../../chess-logic/models';
 import { CommonModule } from '@angular/common';
 import { SelectedSquare } from './models';
 
@@ -20,6 +20,8 @@ export class ChessBoardComponent {
   public get safeSquares(): SafeSquares { return this.chessBoard.safeSquares }
   private selectedSquare: SelectedSquare = { piece: null }
   private pieceSafeSquares: Coords[] = []
+  private lastMove: LastMove | undefined = this.chessBoard.lastMove
+  private checkState: CheckState = this.chessBoard.checkState
 
   public isSquareDark(x: number, y: number): boolean {
     return ChessBoard.isSquareDark(x, y)
@@ -31,6 +33,17 @@ export class ChessBoardComponent {
 
   public isSquareSafeForSelectedPiece(x: number, y: number): boolean {
     return this.pieceSafeSquares.some(square => square.x === x && square.y === y)
+  }
+
+  public isSquareLastMove(x: number, y: number): boolean {
+    if (!this.lastMove) return false
+
+    const { prevX, prevY, currX, currY } = this.lastMove
+    return prevX === x && prevY === y || currX === x && currY === y
+  }
+
+  public isSquareInCheck(x: number, y: number): boolean {
+    return this.checkState.isInCheck && this.checkState.x === x && this.checkState.y === y
   }
 
   private demarkingPreviouslySelectedAndSafeSquares(): void {
@@ -60,6 +73,8 @@ export class ChessBoardComponent {
     const {x: prevX, y: prevY} = this.selectedSquare
     this.chessBoard.move(prevX, prevY, newX, newY)
     this.chessBoardView = this.chessBoard.chessBoardView
+    this.checkState = this.chessBoard.checkState
+    this.lastMove = this.chessBoard.lastMove
     this.demarkingPreviouslySelectedAndSafeSquares()
   }
 
