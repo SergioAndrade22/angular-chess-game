@@ -18,6 +18,8 @@ export class ChessBoardComponent {
   public chessBoardView: (FENChar | null)[][] = this.chessBoard.chessBoardView
   public get playerTurn(): Color { return this.chessBoard.playerTurn }
   public get safeSquares(): SafeSquares { return this.chessBoard.safeSquares }
+  public get gameOverMessage(): string | undefined { return this.chessBoard.gameOverMessage }
+
   private selectedSquare: SelectedSquare = { piece: null }
   private pieceSafeSquares: Coords[] = []
   private lastMove: LastMove | undefined = this.chessBoard.lastMove
@@ -74,6 +76,8 @@ export class ChessBoardComponent {
   }
 
   private selectingPiece(x: number, y: number): void {
+    if (this.gameOverMessage !== undefined)
+      return
     const piece: FENChar | null = this.chessBoardView[x][y]
     if (!piece) return
     if (this.isWrongPieceSelected(piece)) return
