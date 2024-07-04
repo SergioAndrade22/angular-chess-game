@@ -21,7 +21,8 @@ export class StockfishService {
 
     return this.http.get<StockfishResponse>(this.api, { params }).pipe(
       switchMap((response) => {
-        const bestMove: string = response.data.split(" ")[1]
+        console.log(response)
+        const bestMove: string = response.bestmove.split(" ")[1]
         return of(this.moveFromStockfishString(bestMove))
       })
     )

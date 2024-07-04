@@ -15,5 +15,5 @@ export type ChessMove = {
 
 export type StockfishResponse = {
     success: boolean
-    data: string
+    bestmove: string
 }
