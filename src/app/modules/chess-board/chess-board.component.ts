@@ -1,8 +1,10 @@
-import { Component } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ChessBoard } from '../../chess-logic/chess-board';
 import { CheckState, Color, Coords, FENChar, LastMove, SafeSquares, pieceImagePath } from '../../chess-logic/models';
 import { CommonModule } from '@angular/common';
 import { SelectedSquare } from './models';
+import { ChessBoardService } from './chess-board.service';
+import { filter, fromEvent, Subscription, tap } from 'rxjs';
 
 @Component({
   selector: 'app-chess-board',
@@ -29,13 +31,16 @@ export class ChessBoardComponent {
   public isPromotionActive: boolean = false
   private promotionCoords: Coords | null = null
   private promotedPiece: FENChar | null = null
+
+  public flipMode = false
+
+  constructor(protected chessBoardService: ChessBoardService) {}
+
   public promotionPieces(): FENChar[] { 
     return this.playerTurn === Color.White ? 
       [FENChar.WhiteKnight, FENChar.WhiteBishop, FENChar.WhiteRook, FENChar.WhiteQueen] :
       [FENChar.BlackKnight, FENChar.BlackBishop, FENChar.BlackRook, FENChar.BlackQueen]
   }
-
-  public flipMode = false
 
   public flipBoard(): void {
     this.flipMode = !this.flipMode
@@ -116,15 +121,16 @@ export class ChessBoardComponent {
     }
 
     const {x: prevX, y: prevY} = this.selectedSquare
-    this.updateBoard(prevX, prevY, newX, newY)
+    this.updateBoard(prevX, prevY, newX, newY, this.promotedPiece)
   }
 
-  private updateBoard(prevX: number, prevY: number, newX: number, newY: number): void {
-    this.chessBoard.move(prevX, prevY, newX, newY, this.promotedPiece)
+  protected updateBoard(prevX: number, prevY: number, newX: number, newY: number, promotedPiece: FENChar | null): void {
+    this.chessBoard.move(prevX, prevY, newX, newY, promotedPiece)
     this.chessBoardView = this.chessBoard.chessBoardView
     this.checkState = this.chessBoard.checkState
     this.lastMove = this.chessBoard.lastMove
     this.demarkingPreviouslySelectedAndSafeSquares()
+    this.chessBoardService.chessBoardState$.next(this.chessBoard.boardAsFEN);
   }
 
   public promotePiece(piece: FENChar): void {
@@ -134,7 +140,7 @@ export class ChessBoardComponent {
     this.promotedPiece = piece
     const { x: newX, y: newY } = this.promotionCoords
     const { x: prevX, y: prevY } = this.selectedSquare
-    this.updateBoard(prevX, prevY, newX, newY)
+    this.updateBoard(prevX, prevY, newX, newY, this.promotedPiece)
   }
 
   public closePawnPromotionDialog(): void {

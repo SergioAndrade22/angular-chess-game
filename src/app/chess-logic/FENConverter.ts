@@ -6,6 +6,8 @@ import { Piece } from "./pieces/piece";
 import { Rook } from "./pieces/rook";
 
 export class FENConverter {
+    public static readonly initalPosition: string = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+    
     public convertBoardToFEN(
         board: (Piece|null)[][],
         playerTurn: Color,
