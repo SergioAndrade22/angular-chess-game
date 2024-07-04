@@ -1,21 +1,25 @@
 import { HttpClient, HttpParams } from '@angular/common/http'
 import { Injectable } from '@angular/core'
-import { Observable, of, switchMap } from 'rxjs'
-import { ChessMove, StockfishQueryParams, StockfishResponse } from './models'
-import { FENChar } from '../../chess-logic/models'
+import { BehaviorSubject, Observable, of, switchMap } from 'rxjs'
+import { ChessMove, PCConfiguration, StockfishQueryParams, StockfishResponse } from './models'
+import { Color, FENChar } from '../../chess-logic/models'
 
 @Injectable({
   providedIn: 'root'
 })
 export class StockfishService {
   private readonly api: string = 'https://stockfish.online/api/s/v2.php'
+  public pcConfiguration$ = new BehaviorSubject<PCConfiguration>({
+    color: Color.Black,
+    level: 1,
+  })
 
   constructor(private http: HttpClient) { }
 
   public getBestMove(fen: string): Observable<ChessMove> {
     const queryParams: StockfishQueryParams = {
       fen,
-      depth: 13,
+      depth: this.pcConfiguration$.value.level,
     }
     let params = new HttpParams().appendAll(queryParams)
 
@@ -40,10 +44,11 @@ export class StockfishService {
   private promotedPiece(piece: string | undefined): FENChar|null {
     if (!piece)
       return null
-    if (piece === 'n') return FENChar.BlackKnight
-    if (piece === 'b') return FENChar.BlackBishop
-    if (piece === 'r') return FENChar.BlackRook
-    return FENChar.BlackQueen
+    const computerColor: Color = this.pcConfiguration$.value.color
+    if (piece.toLowerCase() === 'n') return computerColor === Color.White ? FENChar.WhiteKnight :  FENChar.BlackKnight
+    if (piece.toLowerCase() === 'b') return computerColor === Color.White ? FENChar.WhiteBishop :  FENChar.BlackBishop
+    if (piece.toLowerCase() === 'r') return computerColor === Color.White ? FENChar.WhiteRook :  FENChar.BlackRook
+    return computerColor === Color.White ? FENChar.WhiteQueen :  FENChar.BlackQueen
   }
 
   private convertColumnLetterToYCoord(letter: string): number {
